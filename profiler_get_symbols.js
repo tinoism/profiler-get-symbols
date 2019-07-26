@@ -2,6 +2,29 @@
     const __exports = {};
     let wasm;
 
+    const heap = new Array(32);
+
+    heap.fill(undefined);
+
+    heap.push(undefined, null, true, false);
+
+    let heap_next = heap.length;
+
+    function addHeapObject(obj) {
+        if (heap_next === heap.length) heap.push(heap.length + 1);
+        const idx = heap_next;
+        heap_next = heap[idx];
+
+        heap[idx] = obj;
+        return idx;
+    }
+    function __wbg_elem_binding0(arg0, arg1, arg2) {
+        wasm.__wbg_function_table.get(29)(arg0, arg1, addHeapObject(arg2));
+    }
+    function __wbg_elem_binding1(arg0, arg1, arg2, arg3) {
+        wasm.__wbg_function_table.get(39)(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+    }
+
     let cachegetInt32Memory = null;
     function getInt32Memory() {
         if (cachegetInt32Memory === null || cachegetInt32Memory.buffer !== wasm.memory.buffer) {
@@ -33,12 +56,6 @@
     function getArrayU8FromWasm(ptr, len) {
         return getUint8Memory().subarray(ptr / 1, ptr / 1 + len);
     }
-
-    const heap = new Array(32);
-
-    heap.fill(undefined);
-
-    heap.push(undefined, null, true, false);
 
     let stack_pointer = 32;
 
@@ -128,6 +145,53 @@
 
 function getObject(idx) { return heap[idx]; }
 
+function dropObject(idx) {
+    if (idx < 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
+/**
+* wasm ffi for javascript to get symbolicate json response
+* @param {any} data
+* @param {any} read_buffer_callback
+* @returns {any}
+*/
+__exports.get_symbolicate_response = function(data, read_buffer_callback) {
+    try {
+        const ret = wasm.get_symbolicate_response(addBorrowedObject(data), addBorrowedObject(read_buffer_callback));
+        return takeObject(ret);
+    } finally {
+        heap[stack_pointer++] = undefined;
+        heap[stack_pointer++] = undefined;
+    }
+};
+
+/**
+* THIS IS A TEST TO SEE WHETHER RECURSIIVE AS_JSON CALL WILL WORK
+* Just for debugging uses
+* @returns {any}
+*/
+__exports.test_symb_json = function() {
+    const ret = wasm.test_symb_json();
+    return takeObject(ret);
+};
+
+let cachedTextDecoder = new TextDecoder('utf-8');
+
+function getStringFromWasm(ptr, len) {
+    return cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
+}
+
+function handleError(e) {
+    wasm.__wbindgen_exn_store(addHeapObject(e));
+}
+
 function debugString(val) {
     // primitive types
     const type = typeof val;
@@ -191,39 +255,6 @@ function debugString(val) {
     }
     // TODO we could test for more things here, like `Set`s and `Map`s.
     return className;
-}
-
-let cachedTextDecoder = new TextDecoder('utf-8');
-
-function getStringFromWasm(ptr, len) {
-    return cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
-}
-
-let heap_next = heap.length;
-
-function dropObject(idx) {
-    if (idx < 36) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
-}
-
-function handleError(e) {
-    wasm.__wbindgen_exn_store(addHeapObject(e));
 }
 /**
 */
@@ -333,18 +364,13 @@ function init(module) {
     let result;
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
-        const ret = debugString(getObject(arg1));
-        const ret0 = passStringToWasm(ret);
-        const ret1 = WASM_VECTOR_LEN;
-        getInt32Memory()[arg0 / 4 + 0] = ret0;
-        getInt32Memory()[arg0 / 4 + 1] = ret1;
+    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+        takeObject(arg0);
     };
-    imports.wbg.__wbindgen_throw = function(arg0, arg1) {
-        throw new Error(getStringFromWasm(arg0, arg1));
-    };
-    imports.wbg.__wbindgen_rethrow = function(arg0) {
-        throw takeObject(arg0);
+    imports.wbg.__wbg_printFromRust_5c705e33acf76fcc = function(arg0, arg1) {
+        const v0 = getStringFromWasm(arg0, arg1).slice();
+        wasm.__wbindgen_free(arg0, arg1 * 1);
+        printFromRust(v0);
     };
     imports.wbg.__wbindgen_memory = function() {
         const ret = wasm.memory;
@@ -358,9 +384,6 @@ function init(module) {
         const ret = new Uint8Array(getObject(arg0), arg1 >>> 0, arg2 >>> 0);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
-    };
     imports.wbg.__wbg_call_9c879b23724d007e = function(arg0, arg1, arg2) {
         try {
             const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));
@@ -371,6 +394,120 @@ function init(module) {
     };
     imports.wbg.__wbindgen_json_parse = function(arg0, arg1) {
         const ret = JSON.parse(getStringFromWasm(arg0, arg1));
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_json_serialize = function(arg0, arg1) {
+        const ret = JSON.stringify(getObject(arg1));
+        const ret0 = passStringToWasm(ret);
+        const ret1 = WASM_VECTOR_LEN;
+        getInt32Memory()[arg0 / 4 + 0] = ret0;
+        getInt32Memory()[arg0 / 4 + 1] = ret1;
+    };
+    imports.wbg.__wbg_new_99151b6c57c672fa = function(arg0, arg1) {
+        const state0 = {a: arg0, b: arg1};
+        const cb0 = (arg0, arg1) => {
+            const a = state0.a;
+            state0.a = 0;
+            try {
+                return __wbg_elem_binding1(a, state0.b, arg0, arg1);
+            } finally {
+                state0.a = a;
+            }
+        };
+        try {
+            const ret = new Promise(cb0);
+            return addHeapObject(ret);
+        } finally {
+            state0.a = state0.b = 0;
+        }
+    };
+    imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
+        const ret = getStringFromWasm(arg0, arg1);
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbg_call_ba924d1fc8d162f3 = function(arg0, arg1, arg2, arg3) {
+        try {
+            const ret = getObject(arg0).call(getObject(arg1), getObject(arg2), getObject(arg3));
+            return addHeapObject(ret);
+        } catch (e) {
+            handleError(e)
+        }
+    };
+    imports.wbg.__wbg_then_fb82bfc0e1d7f311 = function(arg0, arg1, arg2) {
+        const ret = getObject(arg0).then(getObject(arg1), getObject(arg2));
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_cb_drop = function(arg0) {
+        const obj = takeObject(arg0).original;
+        if (obj.cnt-- == 1) {
+            obj.a = 0;
+            return true;
+        }
+        const ret = false;
+        return ret;
+    };
+    imports.wbg.__wbg_resolve_4ca5ad5c0eb0abf1 = function(arg0) {
+        const ret = Promise.resolve(getObject(arg0));
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbg_then_3bb8a69ecfd29434 = function(arg0, arg1) {
+        const ret = getObject(arg0).then(getObject(arg1));
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
+        const ret = debugString(getObject(arg1));
+        const ret0 = passStringToWasm(ret);
+        const ret1 = WASM_VECTOR_LEN;
+        getInt32Memory()[arg0 / 4 + 0] = ret0;
+        getInt32Memory()[arg0 / 4 + 1] = ret1;
+    };
+    imports.wbg.__wbindgen_throw = function(arg0, arg1) {
+        throw new Error(getStringFromWasm(arg0, arg1));
+    };
+    imports.wbg.__wbindgen_rethrow = function(arg0) {
+        throw takeObject(arg0);
+    };
+    imports.wbg.__wbg_instanceof_GetSymbolTableParamWrapper_e0a33c8a19377ee5 = function(arg0) {
+        const ret = getObject(arg0) instanceof GetSymbolTableParamWrapper;
+        return ret;
+    };
+    imports.wbg.__wbg_getInnerBinaryData_5a86fcf78868b48b = function(arg0) {
+        const ret = getObject(arg0).getInnerBinaryData();
+        _assertClass(ret, WasmMemBuffer);
+        const ptr0 = ret.ptr;
+        ret.ptr = 0;
+        return ptr0;
+    };
+    imports.wbg.__wbg_getInnerDebugData_0ee355055d0a376e = function(arg0) {
+        const ret = getObject(arg0).getInnerDebugData();
+        _assertClass(ret, WasmMemBuffer);
+        const ptr0 = ret.ptr;
+        ret.ptr = 0;
+        return ptr0;
+    };
+    imports.wbg.__wbg_getInnerDebugID_ca70a5a981f086d8 = function(arg0, arg1) {
+        const ret = getObject(arg1).getInnerDebugID();
+        const ret0 = passStringToWasm(ret);
+        const ret1 = WASM_VECTOR_LEN;
+        getInt32Memory()[arg0 / 4 + 0] = ret0;
+        getInt32Memory()[arg0 / 4 + 1] = ret1;
+    };
+    imports.wbg.__wbindgen_closure_wrapper107 = function(arg0, arg1, arg2) {
+        const state = { a: arg0, b: arg1, cnt: 1 };
+        const real = (arg0) => {
+            state.cnt++;
+            const a = state.a;
+            state.a = 0;
+            try {
+                return __wbg_elem_binding0(a, state.b, arg0);
+            } finally {
+                if (--state.cnt === 0) wasm.__wbg_function_table.get(30)(a, state.b);
+                else state.a = a;
+            }
+        }
+        ;
+        real.original = state;
+        const ret = real;
         return addHeapObject(ret);
     };
 

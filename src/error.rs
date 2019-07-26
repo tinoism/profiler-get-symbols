@@ -1,6 +1,6 @@
 use goblin::error::Error as GoblinError;
 use pdb_crate::Error as PDBError;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{self};
 
 pub type Result<T> = std::result::Result<T, GetSymbolsError>;
@@ -51,7 +51,7 @@ impl fmt::Display for GetSymbolsError {
 }
 
 impl GetSymbolsError {
-    fn enum_as_string(&self) -> &'static str {
+    pub fn enum_as_string(&self) -> &'static str {
         match *self {
             GetSymbolsError::UnmatchedBreakpadId(_, _) => "UnmatchedBreakpadId",
             GetSymbolsError::PDBError(_) => "PDBError",
@@ -62,10 +62,10 @@ impl GetSymbolsError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GetSymbolsErrorJson {
-    error_type: String,
-    error_msg: String,
+    pub error_type: String,
+    pub error_msg: String,
 }
 
 impl GetSymbolsErrorJson {

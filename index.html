@@ -18,7 +18,7 @@
 const { CompactSymbolTable, WasmMemBuffer, get_compact_symbol_table } = wasm_bindgen;
 
 const request = new Request('./profiler_get_symbols_bg.wasm', {
-  integrity: 'sha384-jfLN2yLb/rX6rtIKFF4zrCyDXzhUOmmOmO9IydNWixvxOqHd4cVMmjFKHBSfZVFN'
+  // integrity: 'sha384-hS8qywf3tSrjFNSiWsyOuNqexIElX70JI4fgRjRDCI2idPxGYjtJfkcbdTyqzWnY',
 });
 
 WebAssembly.compileStreaming(fetch(request)).then(module => {
@@ -81,4 +81,85 @@ async function doStuff() {
   console.log(addr.length, index.length, buffer.length);
 }
 
+function printFromRust(phrase) {
+  console.log(phrase);
+}
+
+
+async function passBuffer(fileName, debugId) {
+  // TODO: instead of reading from <input>, need to invoke a function to read from path
+  console.log(`passBuffer is called: I got ${fileName} and ${debugId} from Rust`);
+  const binaryFileResult = await getFileResultOrUndefined(document.querySelector("#binary"));
+  const debugFileResult = await getFileResultOrUndefined(document.querySelector("#debug"));
+  if (!binaryFileResult) {
+    console.log(`binaryFileResult is empty`);
+    return;
+  }
+  const binaryData = new WasmMemBuffer(binaryFileResult.byteLength, array => {
+    array.set(new Uint8Array(binaryFileResult));
+  });
+  let debugData = binaryData;
+  if (debugFileResult) {
+    debugData = new WasmMemBuffer(debugFileResult.byteLength, array => {
+      array.set(new Uint8Array(debugFileResult));
+    });
+  }
+  console.log(binaryFileResult.byteLength, debugFileResult.byteLength);
+  console.log(binaryData, debugData);
+
+  const breakpadId = document.querySelector("#breakpadId").value;
+  return new GetSymbolTableParamWrapper(
+    binaryData, 
+    debugData,
+    breakpadId
+  );
+}
+
+async function get_symbolicate_response() {
+  let data = {
+    "jobs": [
+        {
+          "memoryMap": [
+            [
+              "xul.pdb",
+              "0C920D17E0193CFA8B026CC14D90C0DB0"
+            ],
+          ],
+          "stacks": [
+            [
+              [0, 9604],  // the closest to it is 9600, 9604 doesn't map to a function
+            ]
+          ]
+        }
+      ]
+    };
+    let res = await wasm_bindgen.get_symbolicate_response(data, passBuffer);
+    console.log(res);
+    return res;
+}
+
+class GetSymbolTableParamWrapper {
+  constructor (binaryData, debugData, debugId) {
+    this.binaryData = binaryData;
+    this.debugData = debugData;
+    this.debugId = debugId;
+  }
+
+  getInnerDebugData() {
+    return this.debugData;
+  }
+
+  getInnerBinaryData() {
+    return this.binaryData;
+  }
+
+  getInnerDebugID() {
+    return this.debugId;
+  }
+}
+
 </script>
+0C920D17E0193CFA8B026CC14D90C0DB0
+<button id="exampleCallback" onclick=callbackExample()>Example Callback</button>
+<button id="postJSON" onclick=postJSON()>Post JSON</button>
+<button onclick="get_symbolicate_response()">get_symbolicate_response</button>

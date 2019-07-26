@@ -1,5 +1,5 @@
+use crate::compact_symbol_table::CompactSymbolTable;
 use crate::error::{GetSymbolsError, Result};
-use compact_symbol_table::CompactSymbolTable;
 use goblin::elf;
 use object::{ElfFile, Object, Uuid};
 use std::cmp;

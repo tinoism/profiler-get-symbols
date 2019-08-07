@@ -172,7 +172,7 @@ pub fn get_compact_symbol_table_internal(
             index: table.index,
             buffer: table.buffer,
         }),
-        Err(err) => Err(err) 
+        Err(err) => Err(err),
     }
 }
 
@@ -180,7 +180,7 @@ pub fn get_compact_symbol_table_internal(
 #[wasm_bindgen]
 pub fn get_symbolicate_response(
     data: &JsValue,
-    read_buffer_callback: &js_sys::Function,    // read_buffer_callback takes two param: fileName, debugId
+    read_buffer_callback: &js_sys::Function, // read_buffer_callback takes two param: fileName, debugId
 ) -> std::result::Result<JsValue, JsValue> {
     match process_symbolicate_request(data, read_buffer_callback) {
         SymbolicateResult::Ok(resp) => Ok(resp),
@@ -264,19 +264,19 @@ fn parse_job(job: &JsonValue) -> SymbolicateResult<SymbolicateJob> {
 }
 
 /// Return the function name and function offset if found.
-/// If no exact module offset is found, then the function uses the nearest offset rounded down. 
+/// If no exact module offset is found, then the function uses the nearest offset rounded down.
 pub fn get_function_name(
     module_offset: u32,
     table: &CompactSymbolTable,
 ) -> SymbolicateResult<Option<SymbolicateFunctionInfo>> {
-    let buffer_start : u32; 
-    let buffer_end : u32; 
+    let buffer_start: u32;
+    let buffer_end: u32;
     match table.addr.binary_search(&module_offset) {
         Ok(found_index) => {
             buffer_start = table.index[found_index];
             buffer_end = table.index[found_index + 1];
         }
-        // If not found, then we take the nearest rounded down index. 
+        // If not found, then we take the nearest rounded down index.
         // possible_index returned by binary_search is the rounded up index, so we take
         // the one below it. Edge case would be when the possible_index is already 0, meaning the element
         // is indeed not found and there does not exist a nearest smaller element
@@ -285,7 +285,10 @@ pub fn get_function_name(
                 buffer_start = table.index[possible_index - 1];
                 buffer_end = table.index[possible_index];
             } else {
-                return Err(SymbolicateError::ModuleIndexOutOfBound(table.addr.len(), module_offset as usize));
+                return Err(SymbolicateError::ModuleIndexOutOfBound(
+                    table.addr.len(),
+                    module_offset as usize,
+                ));
             }
         }
     };
@@ -363,7 +366,7 @@ pub struct SymbolicateJsonAssembler {
 }
 
 impl SymbolicateJsonAssembler {
-    /// Requires the total number of modules requested so to instantiate the 
+    /// Requires the total number of modules requested so to instantiate the
     /// capacity of the returning stacks with that, which the promises after
     /// JS callbacks can put the results in
     pub fn new(total_modules: usize) -> Self {
@@ -438,9 +441,7 @@ impl SymbolicateJsonAssembler {
 
     /// The function will return a JS Promise that returns when all job futures have been fulfilled
     /// function will consume self, so caller must ensure this is the last call on the assembler if used
-    pub fn return_symbolicate_json_promise(
-        self,
-    ) -> SymbolicateResult<JsValue> {
+    pub fn return_symbolicate_json_promise(self) -> SymbolicateResult<JsValue> {
         let mut symbolicate_resp = SymbolicateResponseResult::new(self.total_modules as usize);
         let pending_futures_join = futures::future::join_all(self.pending_futures);
         let futures_resolve = pending_futures_join

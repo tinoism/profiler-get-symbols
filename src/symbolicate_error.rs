@@ -1,5 +1,5 @@
-use serde::Serialize;
 use crate::error::GetSymbolsError;
+use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
 use std::fmt::{self};
 use wasm_bindgen::JsValue;
